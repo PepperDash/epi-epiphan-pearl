@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PepperDash.Core;
 
-namespace PepperDash.Essentials.PanoptoCloud.EpiphanPearl.Interfaces
+namespace PepperDash.Essentials.EpiphanPearl.Interfaces
 {
     interface IEpiphanPearlClient
     {

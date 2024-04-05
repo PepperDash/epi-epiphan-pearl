@@ -8,12 +8,12 @@ using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Bridges;
 using PepperDash.Essentials.Core.Config;
 using PepperDash.Essentials.Core.Devices;
-using PepperDash.Essentials.PanoptoCloud.EpiphanPearl.Interfaces;
-using PepperDash.Essentials.PanoptoCloud.EpiphanPearl.JoinMaps;
-using PepperDash.Essentials.PanoptoCloud.EpiphanPearl.Models;
-using PepperDash.Essentials.PanoptoCloud.EpiphanPearl.Utilities;
+using PepperDash.Essentials.EpiphanPearl.Interfaces;
+using PepperDash.Essentials.EpiphanPearl.JoinMaps;
+using PepperDash.Essentials.EpiphanPearl.Models;
+using PepperDash.Essentials.EpiphanPearl.Utilities;
 
-namespace PepperDash.Essentials.PanoptoCloud.EpiphanPearl
+namespace PepperDash.Essentials.EpiphanPearl
 {
     public class EpiphanPearlController : ReconfigurableBridgableDevice, ICommunicationMonitor
     {

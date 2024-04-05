@@ -1,7 +1,7 @@
 ﻿using System;
 using PepperDash.Essentials.Core;
 
-namespace PepperDash.Essentials.PanoptoCloud.EpiphanPearl.JoinMaps
+namespace PepperDash.Essentials.EpiphanPearl.JoinMaps
 {
     public class EpiphanPearlJoinMap:JoinMapBaseAdvanced
     {

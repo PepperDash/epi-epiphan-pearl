@@ -5,7 +5,7 @@ using System.Text;
 using Crestron.SimplSharp;
 using PepperDash.Essentials.Core;
 
-namespace PepperDash.Essentials.PanoptoCloud.EpiphanPearl
+namespace PepperDash.Essentials.EpiphanPearl
 {
     public class EpiphanPearlFactory: EssentialsPluginDeviceFactory<EpiphanPearlController>
     {

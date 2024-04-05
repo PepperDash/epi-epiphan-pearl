@@ -3,7 +3,7 @@ using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
-namespace PepperDash.Essentials.PanoptoCloud.EpiphanPearl.Models
+namespace PepperDash.Essentials.EpiphanPearl.Models
 {
     public class Event
     {

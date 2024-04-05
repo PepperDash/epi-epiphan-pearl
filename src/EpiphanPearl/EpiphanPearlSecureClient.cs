@@ -4,10 +4,10 @@ using Crestron.SimplSharp.Net.Https;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PepperDash.Core;
-using PepperDash.Essentials.PanoptoCloud.EpiphanPearl.Interfaces;
-using PepperDash.Essentials.PanoptoCloud.EpiphanPearl.Utilities;
+using PepperDash.Essentials.EpiphanPearl.Interfaces;
+using PepperDash.Essentials.EpiphanPearl.Utilities;
 
-namespace PepperDash.Essentials.PanoptoCloud.EpiphanPearl
+namespace PepperDash.Essentials.EpiphanPearl
 {
     public class EpiphanPearlSecureClient : IEpiphanPearlClient
     {

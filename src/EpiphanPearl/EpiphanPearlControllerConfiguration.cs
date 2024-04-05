@@ -5,7 +5,7 @@ using System.Text;
 using Crestron.SimplSharp;
 using Newtonsoft.Json;
 
-namespace PepperDash.Essentials.PanoptoCloud.EpiphanPearl
+namespace PepperDash.Essentials.EpiphanPearl
 {
     public class EpiphanPearlControllerConfiguration
     {

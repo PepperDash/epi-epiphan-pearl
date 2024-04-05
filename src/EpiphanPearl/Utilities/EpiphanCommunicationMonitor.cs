@@ -6,7 +6,7 @@ using Crestron.SimplSharp;
 using PepperDash.Core;
 using PepperDash.Essentials.Core;
 
-namespace PepperDash.Essentials.PanoptoCloud.EpiphanPearl.Utilities
+namespace PepperDash.Essentials.EpiphanPearl.Utilities
 {
     public class EpiphanCommunicationMonitor:StatusMonitorBase
     {

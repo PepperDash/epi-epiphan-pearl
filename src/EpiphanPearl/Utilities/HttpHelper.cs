@@ -6,7 +6,7 @@ using Crestron.SimplSharp;
 using Crestron.SimplSharp.Net.Http;
 using Crestron.SimplSharp.Net.Https;
 
-namespace PepperDash.Essentials.PanoptoCloud.EpiphanPearl.Utilities
+namespace PepperDash.Essentials.EpiphanPearl.Utilities
 {
     public static class HttpHelpers
     {
