@@ -13,6 +13,20 @@ namespace PepperDash.Essentials.EpiphanPearl.JoinMaps
         {
         }
 
+        [JoinName("SetHostname")]
+        public JoinDataComplete SetHostname = new JoinDataComplete(
+            new JoinData
+            {
+                JoinNumber = 1,
+                JoinSpan = 1
+            },
+            new JoinMetadata
+            {
+                JoinCapabilities = eJoinCapabilities.FromSIMPL,
+                JoinType = eJoinType.Serial,
+                Description = "Set Hostname"
+            });
+
         [JoinName("RecorderOnline")]
         public JoinDataComplete RecorderOnline = new JoinDataComplete(
             new JoinData

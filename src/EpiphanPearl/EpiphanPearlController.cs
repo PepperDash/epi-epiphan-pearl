@@ -36,23 +36,31 @@ namespace PepperDash.Essentials.EpiphanPearl
         private StringFeedback _runningEventStartFeedback;
         private FeedbackCollection<StringFeedback> _scheduleEndFeedbacks;
         private FeedbackCollection<StringFeedback> _scheduleIdFeedbacks;
-        private FeedbackCollection<StringFeedback> _scheduleLengthFeedbacks;
+        private FeedbackCollection<StringFeedback> _scheduleLengthFeedbacks;    
         private FeedbackCollection<StringFeedback> _scheduleNameFeedbacks;
         private FeedbackCollection<StringFeedback> _scheduleStartFeedbacks;
         private List<Event> _scheduledEvents;
         private CTimer _statusTimer;
+        private DeviceConfig devConfig;
+        private EpiphanPearlControllerConfiguration _devProperties
+        {
+            get
+            {
+                return devConfig.Properties.ToObject<EpiphanPearlControllerConfiguration>();
+            }
+        }
 
         public EpiphanPearlController(DeviceConfig config) : base(config)
         {
-            var devConfig = config.Properties.ToObject<EpiphanPearlControllerConfiguration>();
+            devConfig = config;
 
-            if (devConfig.Secure)
+            if (_devProperties.Secure)
             {
-                _client = new EpiphanPearlSecureClient(devConfig.Host, devConfig.Username, devConfig.Password);
+                _client = new EpiphanPearlSecureClient(_devProperties.Host, _devProperties.Username, _devProperties.Password);
             }
             else
             {
-                _client = new EpiphanPearlClient(devConfig.Host, devConfig.Username, devConfig.Password);
+                _client = new EpiphanPearlClient(_devProperties.Host, _devProperties.Username, _devProperties.Password);
             }
 
             _monitor = new EpiphanCommunicationMonitor(this, 30000, 60000);
@@ -153,6 +161,8 @@ namespace PepperDash.Essentials.EpiphanPearl
             trilist.SetSigTrueAction(joinMap.Pause.JoinNumber, PauseRunningEvent);
             trilist.SetSigTrueAction(joinMap.Resume.JoinNumber, ResumeRunningEvent);
             trilist.SetSigTrueAction(joinMap.Extend.JoinNumber, ExtendRunningEvent);
+
+            trilist.SetStringSigAction(joinMap.SetHostname.JoinNumber, this.SetIpAddress);
 
             CommunicationMonitor.IsOnlineFeedback.LinkInputSig(trilist.BooleanInput[joinMap.RecorderOnline.JoinNumber]);
 
@@ -507,5 +517,43 @@ namespace PepperDash.Essentials.EpiphanPearl
                 _scheduleLengthFeedbacks[i].FireUpdate();
             }
         }
+
+        public void SetIpAddress(string hostname)
+        {
+            try
+            {
+                Debug.Console(0, this, "Changing IPAddress: {0}", hostname);
+                if (hostname.Length > 2 &
+                    devConfig.Properties["host"].ToString() != hostname)
+                {
+                    Debug.Console(0, this, "Changing IPAddress: {0}", hostname);
+
+
+                    if (_devProperties.Secure)
+                    {
+                        (_client as EpiphanPearlSecureClient).setHost(hostname);
+                    }
+                    else
+                    {
+                        (_client as EpiphanPearlClient).setHost(hostname);
+                    }
+
+                    devConfig.Properties["host"] = hostname;
+                    CustomSetConfig(devConfig);
+                    
+                }
+            }
+            catch (Exception e)
+            {
+                if (Debug.Level == 2)
+                    Debug.Console(0, this, "Error SetIpAddress: '{0}'", e);
+            }
+        }
+        protected override void CustomSetConfig(DeviceConfig config)
+        {
+            ConfigWriter.UpdateDeviceConfig(config);
+        }
+
+
     }
 }

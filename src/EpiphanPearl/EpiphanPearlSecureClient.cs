@@ -15,7 +15,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
         private readonly HttpsHeader _authHeader;
 
-        private readonly string _basePath;
+        private string _basePath;
 
         public EpiphanPearlSecureClient(string host, string username, string password) 
         {
@@ -128,6 +128,10 @@ namespace PepperDash.Essentials.EpiphanPearl
             return SendRequest(request);
         }
 
+        public void setHost(string host)
+        {
+            _basePath = string.Format("http://{0}/api", host);
+        }
         private string SendRequest(HttpsClientRequest request)
         {
             try

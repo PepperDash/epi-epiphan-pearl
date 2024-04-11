@@ -91,7 +91,7 @@
     <Compile Include="EpiphanPearl\Interfaces\IEpiphanPearlClient.cs" />
     <Compile Include="EpiphanPearl\JoinMaps\EpiphanPearlJoinMap.cs" />
     <Compile Include="EpiphanPearl\Models\EventExtraData.cs" />
-    <Compile Include="EpiphanPearl\Models\Event.cs" />
+    <Compile Include="EpiphanPearl\Event.cs" />
     <Compile Include="EpiphanPearl\Models\ExtendEventRequest.cs" />
     <Compile Include="EpiphanPearl\Models\ScheduleResponse.cs" />
     <Compile Include="EpiphanPearl\Utilities\EpiphanCommunicationMonitor.cs" />
