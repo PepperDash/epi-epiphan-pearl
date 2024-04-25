@@ -33,6 +33,7 @@ namespace PepperDash.Essentials.EpiphanPearl
         private StringFeedback _runningEventIdFeedback;
         private StringFeedback _runningEventLengthFeedback;
         private StringFeedback _runningEventNameFeedback;
+        private StringFeedback _runningEventTimeRemainingFeedback;
 
         private BoolFeedback _runningEventRunningFeedback;
         private StringFeedback _runningEventStartFeedback;
@@ -151,6 +152,18 @@ namespace PepperDash.Essentials.EpiphanPearl
 
                 return string.Format("{0}", length);
             });
+            _runningEventTimeRemainingFeedback = new StringFeedback(() =>
+            {
+                if (_runningEvent == null)
+                {
+                    return string.Empty;
+                }
+
+                DateTime currentTime = DateTime.UtcNow;
+                TimeSpan timeRemaining = _runningEvent.Finish.Subtract(currentTime);
+
+                return string.Format("{0}", ((timeRemaining.Hours * 60) + timeRemaining.Minutes));
+            });
 
             _runningEventRunningFeedback =
                 new BoolFeedback(
@@ -186,6 +199,7 @@ namespace PepperDash.Essentials.EpiphanPearl
             _runningEventEndFeedback.LinkInputSig(trilist.StringInput[joinMap.CurrentRecordingEndTime.JoinNumber]);
             _runningEventIdFeedback.LinkInputSig(trilist.StringInput[joinMap.CurrentRecordingId.JoinNumber]);
             _runningEventLengthFeedback.LinkInputSig(trilist.StringInput[joinMap.CurrentRecordingLength.JoinNumber]);
+            _runningEventTimeRemainingFeedback.LinkInputSig(trilist.StringInput[joinMap.CurrentRecordingTimeRemaining.JoinNumber]);
 
             _scheduledRecordings[0].NameFeedback.LinkInputSig(trilist.StringInput[joinMap.NextRecordingName.JoinNumber]);
             _scheduledRecordings[0].IdFeedback.LinkInputSig(trilist.StringInput[joinMap.NextRecordingId.JoinNumber]);
@@ -212,6 +226,7 @@ namespace PepperDash.Essentials.EpiphanPearl
                 trilist.StringInput[joinMap.CurrentRecordingStartTime.JoinNumber].StringValue = _runningEventStartFeedback.StringValue;
                 trilist.StringInput[joinMap.CurrentRecordingEndTime.JoinNumber].StringValue = _runningEventEndFeedback.StringValue;
                 trilist.StringInput[joinMap.CurrentRecordingLength.JoinNumber].StringValue = _runningEventLengthFeedback.StringValue;
+                trilist.StringInput[joinMap.CurrentRecordingTimeRemaining.JoinNumber].StringValue = _runningEventTimeRemainingFeedback.StringValue;
 
                 Debug.Console(2, this, "Bridge online.");
 
@@ -546,6 +561,7 @@ namespace PepperDash.Essentials.EpiphanPearl
             _runningEventEndFeedback.FireUpdate();
             _runningEventIdFeedback.FireUpdate();
             _runningEventLengthFeedback.FireUpdate();
+            _runningEventTimeRemainingFeedback.FireUpdate();
 
             _runningEventRunningFeedback.FireUpdate();
             _nextEventExistsFeedback.FireUpdate();

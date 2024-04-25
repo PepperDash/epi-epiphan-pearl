@@ -181,6 +181,20 @@ namespace PepperDash.Essentials.EpiphanPearl.JoinMaps
                 Description = "CurrentRecordingLength"
             });
 
+        [JoinName("CurrentRecordingTimeRemaining")]
+        public JoinDataComplete CurrentRecordingTimeRemaining = new JoinDataComplete(
+            new JoinData
+            {
+                JoinNumber = 16,
+                JoinSpan = 1
+            },
+            new JoinMetadata
+            {
+                JoinCapabilities = eJoinCapabilities.ToSIMPL,
+                JoinType = eJoinType.Serial,
+                Description = "CurrentRecordingTimeRemaining"
+            });
+
         [JoinName("NextRecordingId")]
         public JoinDataComplete NextRecordingId = new JoinDataComplete(
             new JoinData
