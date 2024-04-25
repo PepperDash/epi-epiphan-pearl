@@ -27,6 +27,8 @@ namespace PepperDash.Essentials.EpiphanPearl
 
         private Event _runningEvent;
 
+        private List<ScheduledRecording> _scheduledRecordings;
+
         private StringFeedback _runningEventEndFeedback;
         private StringFeedback _runningEventIdFeedback;
         private StringFeedback _runningEventLengthFeedback;
@@ -34,11 +36,13 @@ namespace PepperDash.Essentials.EpiphanPearl
 
         private BoolFeedback _runningEventRunningFeedback;
         private StringFeedback _runningEventStartFeedback;
+        /*
         private FeedbackCollection<StringFeedback> _scheduleEndFeedbacks;
         private FeedbackCollection<StringFeedback> _scheduleIdFeedbacks;
         private FeedbackCollection<StringFeedback> _scheduleLengthFeedbacks;    
         private FeedbackCollection<StringFeedback> _scheduleNameFeedbacks;
         private FeedbackCollection<StringFeedback> _scheduleStartFeedbacks;
+         */
         private List<Event> _scheduledEvents;
         private CTimer _statusTimer;
         private DeviceConfig devConfig;
@@ -75,7 +79,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
         public override void Initialize()
         {
-            _pollTimer = new CTimer(o => Poll(), null, 0, 60000);
+            _pollTimer = new CTimer(o => Poll(), null, 0, 15000);
 
             _monitor.Start();
         }
@@ -91,14 +95,21 @@ namespace PepperDash.Essentials.EpiphanPearl
 
         private void CreateFeedbacks()
         {
+            _scheduledRecordings = new List<ScheduledRecording>();
+
+            /*
             _scheduleNameFeedbacks = new FeedbackCollection<StringFeedback>();
             _scheduleStartFeedbacks = new FeedbackCollection<StringFeedback>();
             _scheduleEndFeedbacks = new FeedbackCollection<StringFeedback>();
             _scheduleIdFeedbacks = new FeedbackCollection<StringFeedback>();
             _scheduleLengthFeedbacks = new FeedbackCollection<StringFeedback>();
+             */
 
             for (var i = 0; i < 20; i++)
             {
+                ScheduledRecording recording = new ScheduledRecording();
+                _scheduledRecordings.Add(recording);
+                /*
                 var index = i;
                 var name = new StringFeedback(() => _scheduledEvents.Count > 0 ? _scheduledEvents[index].Title : string.Empty);
                 var start = new StringFeedback(() => _scheduledEvents.Count > 0 ? _scheduledEvents[index].Start.ToLocalTime().ToString("hh:mm:ss tt") : string.Empty);
@@ -119,6 +130,7 @@ namespace PepperDash.Essentials.EpiphanPearl
                 _scheduleEndFeedbacks.Add(end);
                 _scheduleIdFeedbacks.Add(id);
                 _scheduleLengthFeedbacks.Add(length);
+                 */
             }
 
             _runningEventNameFeedback =
@@ -175,11 +187,19 @@ namespace PepperDash.Essentials.EpiphanPearl
             _runningEventIdFeedback.LinkInputSig(trilist.StringInput[joinMap.CurrentRecordingId.JoinNumber]);
             _runningEventLengthFeedback.LinkInputSig(trilist.StringInput[joinMap.CurrentRecordingLength.JoinNumber]);
 
+            _scheduledRecordings[0].NameFeedback.LinkInputSig(trilist.StringInput[joinMap.NextRecordingName.JoinNumber]);
+            _scheduledRecordings[0].IdFeedback.LinkInputSig(trilist.StringInput[joinMap.NextRecordingId.JoinNumber]);
+            _scheduledRecordings[0].StartFeedback.LinkInputSig(trilist.StringInput[joinMap.NextRecordingStartTime.JoinNumber]);
+            _scheduledRecordings[0].EndFeedback.LinkInputSig(trilist.StringInput[joinMap.NextRecordingEndTime.JoinNumber]);
+            _scheduledRecordings[0].LengthFeedback.LinkInputSig(trilist.StringInput[joinMap.NextRecordingLength.JoinNumber]);
+
+            /*
             _scheduleNameFeedbacks[0].LinkInputSig(trilist.StringInput[joinMap.NextRecordingName.JoinNumber]);
             _scheduleStartFeedbacks[0].LinkInputSig(trilist.StringInput[joinMap.NextRecordingStartTime.JoinNumber]);
             _scheduleEndFeedbacks[0].LinkInputSig(trilist.StringInput[joinMap.NextRecordingEndTime.JoinNumber]);
             _scheduleIdFeedbacks[0].LinkInputSig(trilist.StringInput[joinMap.NextRecordingId.JoinNumber]);
             _scheduleLengthFeedbacks[0].LinkInputSig(trilist.StringInput[joinMap.NextRecordingLength.JoinNumber]);
+             */
 
             _nextEventExistsFeedback.LinkInputSig(trilist.BooleanInput[joinMap.NextRecordingExists.JoinNumber]);
 
@@ -195,13 +215,13 @@ namespace PepperDash.Essentials.EpiphanPearl
 
                 Debug.Console(2, this, "Bridge online.");
 
-                Debug.Console(2, this, "{0} - {1} | {2} | {3} | {4} | {5}", 0, _scheduleIdFeedbacks[0].StringValue, _scheduleNameFeedbacks[0].StringValue, _scheduleStartFeedbacks[0].StringValue, _scheduleEndFeedbacks[0].StringValue, _scheduleLengthFeedbacks[0].StringValue);
+                Debug.Console(2, this, "{0} - {1} | {2} | {3} | {4} | {5}", 0, _scheduledRecordings[0].Id, _scheduledRecordings[0].Name, _scheduledRecordings[0].Start, _scheduledRecordings[0].End, _scheduledRecordings[0].Length);
 
-                trilist.StringInput[joinMap.NextRecordingId.JoinNumber].StringValue = _scheduleIdFeedbacks[0].StringValue;
-                trilist.StringInput[joinMap.NextRecordingName.JoinNumber].StringValue = _scheduleNameFeedbacks[0].StringValue;
-                trilist.StringInput[joinMap.NextRecordingStartTime.JoinNumber].StringValue = _scheduleStartFeedbacks[0].StringValue;
-                trilist.StringInput[joinMap.NextRecordingEndTime.JoinNumber].StringValue = _scheduleEndFeedbacks[0].StringValue;
-                trilist.StringInput[joinMap.NextRecordingLength.JoinNumber].StringValue = _scheduleLengthFeedbacks[0].StringValue;
+                trilist.StringInput[joinMap.NextRecordingId.JoinNumber].StringValue = _scheduledRecordings[0].Id;
+                trilist.StringInput[joinMap.NextRecordingName.JoinNumber].StringValue = _scheduledRecordings[0].Name;
+                trilist.StringInput[joinMap.NextRecordingStartTime.JoinNumber].StringValue = _scheduledRecordings[0].Start;
+                trilist.StringInput[joinMap.NextRecordingEndTime.JoinNumber].StringValue = _scheduledRecordings[0].End;
+                trilist.StringInput[joinMap.NextRecordingLength.JoinNumber].StringValue = _scheduledRecordings[0].Length;
             };
         }
 
@@ -404,11 +424,33 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             _scheduledEvents = response.Result;
 
-            Debug.Console(2, this, "Scheduled Events");
 
-            for (var i = 0; i < _scheduledEvents.Count; i++)
+            if (_scheduledEvents.Count > 0)
             {
-                Debug.Console(2, this, "{0} - {1} | {2} | {3} | {4}", i, _scheduledEvents[i].Id, _scheduledEvents[i].Title, _scheduledEvents[i].Start, _scheduledEvents[i].Finish);
+                Debug.Console(2, this, "Scheduled Events");
+                for (var i = 0; i < _scheduledEvents.Count; i++)
+                {
+                    Debug.Console(2, this, "{0} - {1} | {2} | {3} | {4}", i, _scheduledEvents[i].Id, _scheduledEvents[i].Title, _scheduledEvents[i].Start, _scheduledEvents[i].Finish);
+                    _scheduledRecordings[i].Name = _scheduledEvents[i].Title;
+                    _scheduledRecordings[i].Id = _scheduledEvents[i].Id;
+                    _scheduledRecordings[i].Start = _scheduledEvents[i].Start.ToLocalTime().ToString("hh:mm:ss tt");
+                    _scheduledRecordings[i].End = _scheduledEvents[i].Finish.ToLocalTime().ToString("hh:mm:ss tt");
+ 
+                    var time = _scheduledEvents[i].Finish - _scheduledEvents[i].Start;
+                    _scheduledRecordings[i].Length = string.Format("{0}", time);
+                }
+            }
+            else
+            {
+                Debug.Console(2, this, "No Scheduled Events");
+                for (var i = 0; i < _scheduledRecordings.Count; i++)
+                {
+                    _scheduledRecordings[i].Name = string.Empty;
+                    _scheduledRecordings[i].Id = string.Empty;
+                    _scheduledRecordings[i].Start = string.Empty;
+                    _scheduledRecordings[i].End = string.Empty;
+                    _scheduledRecordings[i].Length = string.Empty;
+                }
             }
 
             UpdateFeedbacks();
@@ -508,13 +550,13 @@ namespace PepperDash.Essentials.EpiphanPearl
             _runningEventRunningFeedback.FireUpdate();
             _nextEventExistsFeedback.FireUpdate();
 
-            for (var i = 0; i < _scheduledEvents.Count; i++)
+            for (var i = 0; i < _scheduledRecordings.Count; i++)
             {
-                _scheduleNameFeedbacks[i].FireUpdate();
-                _scheduleStartFeedbacks[i].FireUpdate();
-                _scheduleEndFeedbacks[i].FireUpdate();
-                _scheduleIdFeedbacks[i].FireUpdate();
-                _scheduleLengthFeedbacks[i].FireUpdate();
+                _scheduledRecordings[i].NameFeedback.FireUpdate();
+                _scheduledRecordings[i].IdFeedback.FireUpdate();
+                _scheduledRecordings[i].StartFeedback.FireUpdate();
+                _scheduledRecordings[i].EndFeedback.FireUpdate();
+                _scheduledRecordings[i].LengthFeedback.FireUpdate();
             }
         }
 
@@ -553,7 +595,60 @@ namespace PepperDash.Essentials.EpiphanPearl
         {
             ConfigWriter.UpdateDeviceConfig(config);
         }
+    }
 
+    public class ScheduledRecording
+    {
+        private string _name;
+        private string _id;
+        private string _start;
+        private string _end;
+        private string _length;
 
+        public StringFeedback NameFeedback { get; private set; }
+        public StringFeedback IdFeedback { get; private set; }
+        public StringFeedback StartFeedback { get; private set; }
+        public StringFeedback EndFeedback { get; private set; }
+        public StringFeedback LengthFeedback { get; private set; }
+
+        public string Name
+        {
+            get { return _name; }
+            set { _name = value; }
+        }
+        public string Id
+        {
+            get { return _id; }
+            set { _id = value; }
+        }
+        public string Start
+        {
+            get { return _start; }
+            set { _start = value; }
+        }
+        public string End
+        {
+            get { return _end; }
+            set { _end = value; }
+        }
+        public string Length
+        {
+            get { return _length; }
+            set { _length = value; }
+        }
+
+        public ScheduledRecording()
+        {
+            _name = string.Empty;
+            _id = string.Empty;
+            _start = string.Empty;
+            _end = string.Empty;
+
+            this.NameFeedback = new StringFeedback(() => this._name);
+            this.IdFeedback = new StringFeedback(() => this._id);
+            this.StartFeedback = new StringFeedback(() => this._start);
+            this.EndFeedback = new StringFeedback(() => this._end);
+            this.LengthFeedback = new StringFeedback(() => this._length);
+        }
     }
 }
