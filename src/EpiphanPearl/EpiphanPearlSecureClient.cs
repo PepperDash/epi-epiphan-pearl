@@ -45,12 +45,12 @@ namespace PepperDash.Essentials.EpiphanPearl
             }
             catch (Exception ex)
             {
-                Debug.Console(0, "Exception sending to {0}: {1}", request.Url, ex.Message);
+                Debug.Console(0, "[T Get<T>] Exception sending to {0}: {1}", request.Url, ex.Message);
                 Debug.Console(2, "Stack Trace: {0}", ex.StackTrace);
 
                 if (ex.InnerException == null) return null;
 
-                Debug.Console(0, "Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
+                Debug.Console(0, "[T Get<T>] Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
                 Debug.Console(2, "Stack Trace: {0}", ex.InnerException.StackTrace);
 
                 return null;
@@ -77,12 +77,12 @@ namespace PepperDash.Essentials.EpiphanPearl
             }
             catch (Exception ex)
             {
-                Debug.Console(0, "Exception sending to {0}: {1}", request.Url, ex.Message);
+                Debug.Console(0, "[TResponse Post<TBody, TResponse>] Exception sending to {0}: {1}", request.Url, ex.Message);
                 Debug.Console(2, "Stack Trace: {0}", ex.StackTrace);
 
                 if (ex.InnerException == null) return null;
 
-                Debug.Console(0, "Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
+                Debug.Console(0, "[TResponse Post<TBody, TResponse>] Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
                 Debug.Console(2, "Stack Trace: {0}", ex.InnerException.StackTrace);
 
                 return null;
@@ -109,12 +109,12 @@ namespace PepperDash.Essentials.EpiphanPearl
             }
             catch (Exception ex)
             {
-                Debug.Console(0, "Exception sending to {0}: {1}", request.Url, ex.Message);
+                Debug.Console(0, "[TResponse Post<TResponse>] Exception sending to {0}: {1}", request.Url, ex.Message);
                 Debug.Console(2, "Stack Trace: {0}", ex.StackTrace);
 
                 if (ex.InnerException == null) return null;
 
-                Debug.Console(0, "Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
+                Debug.Console(0, "[TResponse Post<TResponse>] Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
                 Debug.Console(2, "Stack Trace: {0}", ex.InnerException.StackTrace);
 
                 return null;
@@ -136,21 +136,22 @@ namespace PepperDash.Essentials.EpiphanPearl
         {
             try
             {
+                //Debug.Console(0, "Request to {0): {1}", request.Url, request.ContentString);
                 var response = _client.Dispatch(request);
 
-                Debug.Console(0, "Response from request to {0}: {1} {2}", request.Url, response.Code,
-                    response.ContentString);
+                //Debug.Console(0, "Response from request to {0}: {1} {2}", request.Url, response.Code,
+                    //response.ContentString);
 
                 return response.ContentString;
             }
             catch (Exception ex)
             {
-                Debug.Console(0, "Exception sending to {0}: {1}", request.Url, ex.Message);
+                Debug.Console(0, "[SendRequest] Exception sending to {0}: {1}", request.Url, ex.Message);
                 Debug.Console(2, "Stack Trace: {0}", ex.StackTrace);
 
                 if (ex.InnerException == null) return null;
 
-                Debug.Console(0, "Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
+                Debug.Console(0, "[SendRequest] Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
                 Debug.Console(2, "Stack Trace: {0}", ex.InnerException.StackTrace);
 
                 return null;
