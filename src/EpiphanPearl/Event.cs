@@ -39,8 +39,30 @@ namespace PepperDash.Essentials.EpiphanPearl.Models
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            if (reader.Value == null) { return null; }
-            return _epoch.AddSeconds((long)reader.Value);
+            if (reader.Value == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                long seconds = long.Parse(reader.Value.ToString());
+                return _epoch.AddSeconds(seconds);
+            }
+            catch (FormatException)
+            {
+                // Handle the case when the value is not a valid long
+                // You can choose to return a default value, throw a custom exception, or log an error
+                // For example:
+                return _epoch;
+            }
+            catch (OverflowException)
+            {
+                // Handle the case when the value is too large to fit into a long
+                // You can choose to return a default value, throw a custom exception, or log an error
+                // For example:
+                return DateTime.MaxValue;
+            }
         }
     }
 }
