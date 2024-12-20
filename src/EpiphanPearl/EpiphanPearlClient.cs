@@ -55,6 +55,10 @@ namespace PepperDash.Essentials.EpiphanPearl
 
                 return null;
             }
+            finally
+            {
+                
+            }
         }
 
         public TResponse Post<TBody, TResponse> (string path, TBody body) where TBody: class where TResponse: class
@@ -173,6 +177,10 @@ namespace PepperDash.Essentials.EpiphanPearl
                     Debug.Console(2, "[SendRequest] Error converting response to string for URL {0}: {1}", request.Url, ex.Message);
                     return null;
                 }
+                finally
+                {
+                    response.Dispose();
+                }
             }
             catch (Exception ex)
             {
@@ -187,6 +195,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
                 return null;
             }
+
         }
 
         private HttpClientRequest CreateRequest(string path, RequestType requestType)
