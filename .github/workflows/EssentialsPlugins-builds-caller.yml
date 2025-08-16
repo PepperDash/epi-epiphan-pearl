@@ -1,0 +1,12 @@
+name: EssentialsPlugins-builds-caller
+
+on:
+  push:
+    branches: [ main, development, release/* ]
+  pull_request:
+    branches: [ main, development ]
+
+jobs:
+  build:
+    uses: PepperDash/github-workflows/.github/workflows/EssentialsPlugins-build-and-deploy.yml@main
+    secrets: inherit
