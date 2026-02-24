@@ -1,11 +1,9 @@
 ﻿using System;
 using Crestron.SimplSharp.Net.Http;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using PepperDash.Core;
 using PepperDash.Essentials.EpiphanPearl.Interfaces;
 using PepperDash.Essentials.EpiphanPearl.Utilities;
-using System.Text;
 
 namespace PepperDash.Essentials.EpiphanPearl
 {
@@ -34,7 +32,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (response == null || response.Length <= 0)
             {
-                Debug.Console(2, "[T Get<T>] Response to {0} is null", request.Url, response);
+                Debug.Console(2, "[T Get<T>] Response {0} to {1} is null or empty", response, request.Url);
                 return null;
             }
 
@@ -54,10 +52,6 @@ namespace PepperDash.Essentials.EpiphanPearl
                 Debug.Console(2, "Stack Trace: {0}", ex.InnerException.StackTrace);
 
                 return null;
-            }
-            finally
-            {
-                
             }
         }
 
@@ -189,7 +183,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
                 if (ex.InnerException != null)
                 {
-                    Debug.Console(0, "[SendRequest] Inner Exception: {1}", request.Url, ex.InnerException.Message);
+                    Debug.Console(0, "[SendRequest] Inner Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
                     Debug.Console(2, "Inner Stack Trace: {0}", ex.InnerException.StackTrace);
                 }
 
@@ -211,4 +205,5 @@ namespace PepperDash.Essentials.EpiphanPearl
             return request;
         }
     }
+
 }
