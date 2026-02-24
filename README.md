@@ -61,8 +61,7 @@
 - public string Delete(string path)
 - public void setHost(string host)
 - public void SetIpAddress(string hostname)
-- public string Delete(string path)
-- public void setHost(string host)
 - public void SetOnlineStatus(bool isOnline)
 - public void UpdateTimers()
 <!-- END Public Methods -->
+
