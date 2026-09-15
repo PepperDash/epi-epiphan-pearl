@@ -2,7 +2,7 @@
 <!-- START Minimum Essentials Framework Versions -->
 ### Minimum Essentials Framework Versions
 
-- 1.12.8
+- 3.0.0
 <!-- END Minimum Essentials Framework Versions -->
 <!-- START Supported Types -->
 

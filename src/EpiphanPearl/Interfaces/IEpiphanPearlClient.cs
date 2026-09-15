@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PepperDash.Core;
 
-namespace PepperDash.Essentials.EpiphanPearl.Interfaces
+namespace PepperDash.Essentials.Plugins.Interfaces
 {
     interface IEpiphanPearlClient
     {

@@ -1,19 +1,20 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Crestron.SimplSharp;
 using Crestron.SimplSharpPro.DeviceSupport;
 using Newtonsoft.Json.Bson;
 using PepperDash.Core;
+using PepperDash.Core.Logging;
 using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Bridges;
 using PepperDash.Essentials.Core.Config;
 using PepperDash.Essentials.Core.Devices;
-using PepperDash.Essentials.EpiphanPearl.Interfaces;
-using PepperDash.Essentials.EpiphanPearl.JoinMaps;
-using PepperDash.Essentials.EpiphanPearl.Models;
-using PepperDash.Essentials.EpiphanPearl.Utilities;
+using PepperDash.Essentials.Plugins.Interfaces;
+using PepperDash.Essentials.Plugins.JoinMaps;
+using PepperDash.Essentials.Plugins.Models;
+using PepperDash.Essentials.Plugins.Utilities;
 
-namespace PepperDash.Essentials.EpiphanPearl
+namespace PepperDash.Essentials.Plugins
 {
     public class EpiphanPearlController : ReconfigurableBridgableDevice, ICommunicationMonitor
     {
@@ -80,7 +81,7 @@ namespace PepperDash.Essentials.EpiphanPearl
             get { return _monitor; }
         }
 
-        public override void Initialize()
+        protected override void Initialize()
         {
             _pollTimer = new CTimer(o => Poll(), null, 0, 10000);
 
@@ -89,13 +90,13 @@ namespace PepperDash.Essentials.EpiphanPearl
 
         private void Poll()
         {
-            Debug.Console(1, this, "Getting Scheduled Events");
+            this.LogInformation("Getting Scheduled Events");
             GetScheduledEvents();
 
-            Debug.Console(1, this, "Getting Running Events");
+            this.LogInformation("Getting Running Events");
             GetRunningEvent();
 
-            Debug.Console(1, this, "Getting Running Event Status");
+            this.LogInformation("Getting Running Event Status");
             GetRunningEventStatus();
         }
 
@@ -237,9 +238,9 @@ namespace PepperDash.Essentials.EpiphanPearl
                 trilist.StringInput[joinMap.CurrentRecordingLength.JoinNumber].StringValue = _runningEventLengthFeedback.StringValue;
                 trilist.StringInput[joinMap.CurrentRecordingTimeRemaining.JoinNumber].StringValue = _runningEventTimeRemainingFeedback.StringValue;
 
-                Debug.Console(2, this, "Bridge online.");
+                this.LogDebug("Bridge online.");
 
-                Debug.Console(2, this, "{0} - {1} | {2} | {3} | {4} | {5}", 0, _scheduledRecordings[0].Id, _scheduledRecordings[0].Name, _scheduledRecordings[0].Start, _scheduledRecordings[0].End, _scheduledRecordings[0].Length);
+                this.LogDebug("{0} - {1} | {2} | {3} | {4} | {5}", 0, _scheduledRecordings[0].Id, _scheduledRecordings[0].Name, _scheduledRecordings[0].Start, _scheduledRecordings[0].End, _scheduledRecordings[0].Length);
 
                 trilist.StringInput[joinMap.NextRecordingId.JoinNumber].StringValue = _scheduledRecordings[0].Id;
                 trilist.StringInput[joinMap.NextRecordingName.JoinNumber].StringValue = _scheduledRecordings[0].Name;
@@ -274,7 +275,7 @@ namespace PepperDash.Essentials.EpiphanPearl
         {
             if (_runningEvent == null)
             {
-                Debug.Console(1, this, "No running event");
+                this.LogInformation("No running event");
                 return;
             }
 
@@ -284,7 +285,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (response == null)
             {
-                Debug.Console(1, this, "Unable to pause event");
+                this.LogInformation("Unable to pause event");
 
                 _monitor.SetOnlineStatus(false);
 
@@ -293,7 +294,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (!response.Status.Equals("ok", StringComparison.InvariantCultureIgnoreCase))
             {
-                Debug.Console(1, this, "Error pausing event: {0}", response.Message);
+                this.LogInformation("Error pausing event: {0}", response.Message);
             }
         }
 
@@ -301,7 +302,7 @@ namespace PepperDash.Essentials.EpiphanPearl
         {
             if (_runningEvent == null)
             {
-                Debug.Console(1, this, "No running event");
+                this.LogInformation("No running event");
                 return;
             }
 
@@ -311,7 +312,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (response == null)
             {
-                Debug.Console(1, this, "Unable to resume event");
+                this.LogInformation("Unable to resume event");
 
                 _monitor.SetOnlineStatus(false);
 
@@ -320,7 +321,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (!response.Status.Equals("ok", StringComparison.InvariantCultureIgnoreCase))
             {
-                Debug.Console(1, this, "Error resuming event: {0}", response.Message);
+                this.LogInformation("Error resuming event: {0}", response.Message);
             }
         }
 
@@ -328,7 +329,7 @@ namespace PepperDash.Essentials.EpiphanPearl
         {
             if (_runningEvent == null)
             {
-                Debug.Console(1, this, "No running event");
+                this.LogInformation("No running event");
                 return;
             }
 
@@ -338,7 +339,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (response == null)
             {
-                Debug.Console(1, this, "Unable to stop event");
+                this.LogInformation("Unable to stop event");
 
                 _monitor.SetOnlineStatus(false);
 
@@ -347,7 +348,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (!response.Status.Equals("ok", StringComparison.InvariantCultureIgnoreCase))
             {
-                Debug.Console(1, this, "Error stopping event: {0}", response.Message);
+                this.LogInformation("Error stopping event: {0}", response.Message);
             }
 
             //StopEventStatusTimer();
@@ -367,7 +368,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (string.IsNullOrEmpty(id))
             {
-                Debug.Console(1, this, "No scheduled event to start");
+                this.LogInformation("No scheduled event to start");
                 return;
             }
 
@@ -377,7 +378,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (response == null)
             {
-                Debug.Console(1, this, "Unable to start event");
+                this.LogInformation("Unable to start event");
 
                 _monitor.SetOnlineStatus(false);
 
@@ -386,7 +387,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (!response.Status.Equals("ok", StringComparison.InvariantCultureIgnoreCase))
             {
-                Debug.Console(1, this, "Error starting event: {0}", response.Message);
+                this.LogInformation("Error starting event: {0}", response.Message);
                 return;
             }
 
@@ -408,7 +409,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (response == null)
             {
-                Debug.Console(1, this, "Unable to extend event");
+                this.LogInformation("Unable to extend event");
 
                 _monitor.SetOnlineStatus(false);
 
@@ -417,7 +418,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (!response.Status.Equals("ok", StringComparison.InvariantCultureIgnoreCase))
             {
-                Debug.Console(1, this, "Error extending event: {0}", response.Message);
+                this.LogInformation("Error extending event: {0}", response.Message);
             }
         }
 
@@ -433,7 +434,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (response == null)
             {
-                Debug.Console(1, this, "Unable to get scheduled events");
+                this.LogInformation("Unable to get scheduled events");
 
                 _scheduledEvents = new List<Event>();
 
@@ -451,10 +452,10 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (_scheduledEvents.Count > 0)
             {
-                Debug.Console(2, this, "Scheduled Events");
+                this.LogDebug("Scheduled Events");
                 for (var i = 0; i < _scheduledEvents.Count; i++)
                 {
-                    Debug.Console(2, this, "{0} - {1} | {2} | {3} | {4}", i, _scheduledEvents[i].Id, _scheduledEvents[i].Title, _scheduledEvents[i].Start, _scheduledEvents[i].Finish);
+                    this.LogDebug("{0} - {1} | {2} | {3} | {4}", i, _scheduledEvents[i].Id, _scheduledEvents[i].Title, _scheduledEvents[i].Start, _scheduledEvents[i].Finish);
                     _scheduledRecordings[i].Name = _scheduledEvents[i].Title;
                     _scheduledRecordings[i].Id = _scheduledEvents[i].Id;
                     _scheduledRecordings[i].Start = _scheduledEvents[i].Start.ToLocalTime().ToString("hh:mm:ss tt");
@@ -466,7 +467,7 @@ namespace PepperDash.Essentials.EpiphanPearl
             }
             else
             {
-                Debug.Console(2, this, "No Scheduled Events");
+                this.LogDebug("No Scheduled Events");
                 for (var i = 0; i < _scheduledRecordings.Count; i++)
                 {
                     _scheduledRecordings[i].Name = string.Empty;
@@ -484,7 +485,7 @@ namespace PepperDash.Essentials.EpiphanPearl
         {
             // Current event could be either running or paused
 
-            Debug.Console(1, this, "Getting Running Events");
+            this.LogInformation("Getting Running Events");
 
             var runningEventPath = string.Format("/schedule/events/?status=running");
 
@@ -494,14 +495,14 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (response == null)
             {
-                Debug.Console(1, this, "Unable to get running event");
+                this.LogInformation("Unable to get running event");
             }
 
             if (response != null && response.Result.Count > 0)
             {
                 _runningEvent = response.Result[0];
 
-                Debug.Console(1, this, "Running Event: {0} | {1} | {2} | {3} | ", _runningEvent.Id,
+                this.LogInformation("Running Event: {0} | {1} | {2} | {3} | ", _runningEvent.Id,
                     _runningEvent.Title, _runningEvent.Start, _runningEvent.Finish);
 
                 UpdateFeedbacks();
@@ -514,7 +515,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (response == null)
             {
-                Debug.Console(1, this, "Unable to get paused event");
+                this.LogInformation("Unable to get paused event");
                 _runningEvent = null;
 
                 UpdateFeedbacks();
@@ -531,7 +532,7 @@ namespace PepperDash.Essentials.EpiphanPearl
             {
                 //StartEventStatusTimer();
 
-                Debug.Console(1, this, "Running Event: {0} | {1} | {2} | {3} | ", _runningEvent.Id,
+                this.LogInformation("Running Event: {0} | {1} | {2} | {3} | ", _runningEvent.Id,
                     _runningEvent.Title, _runningEvent.Start, _runningEvent.Finish);
             }
             else
@@ -544,7 +545,7 @@ namespace PepperDash.Essentials.EpiphanPearl
         {
             if (_runningEvent == null)
             {
-                Debug.Console(1, this, "No Running Event");
+                this.LogInformation("No Running Event");
                 return;
             }
 
@@ -554,7 +555,7 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (response == null)
             {
-                Debug.Console(1, this, "Unable to get running event status");
+                this.LogInformation("Unable to get running event status");
                 return;
             }
 
@@ -591,11 +592,11 @@ namespace PepperDash.Essentials.EpiphanPearl
         {
             try
             {
-                Debug.Console(0, this, "Changing IPAddress: {0}", hostname);
+                this.LogInformation("Changing IPAddress: {0}", hostname);
                 if (hostname.Length > 2 &
                     devConfig.Properties["host"].ToString() != hostname)
                 {
-                    Debug.Console(0, this, "Changing IPAddress: {0}", hostname);
+                    this.LogInformation("Changing IPAddress: {0}", hostname);
 
 
                     if (_devProperties.Secure)
@@ -615,7 +616,7 @@ namespace PepperDash.Essentials.EpiphanPearl
             catch (Exception e)
             {
                 if (Debug.Level == 2)
-                    Debug.Console(0, this, "Error SetIpAddress: '{0}'", e);
+                    this.LogError("Error SetIpAddress: '{0}'", e);
             }
         }
         protected override void CustomSetConfig(DeviceConfig config)

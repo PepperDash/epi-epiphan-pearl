@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Crestron.SimplSharp;
 using Newtonsoft.Json;
 
-namespace PepperDash.Essentials.EpiphanPearl.Models
+namespace PepperDash.Essentials.Plugins.Models
 {
     public class ScheduleResponse<T>
     {

@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
-namespace PepperDash.Essentials.EpiphanPearl.Models
+namespace PepperDash.Essentials.Plugins.Models
 {
     public class Event
     {

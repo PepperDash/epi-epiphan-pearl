@@ -1,11 +1,12 @@
-﻿using System;
+using System;
 using Crestron.SimplSharp.Net.Http;
 using Newtonsoft.Json;
 using PepperDash.Core;
-using PepperDash.Essentials.EpiphanPearl.Interfaces;
-using PepperDash.Essentials.EpiphanPearl.Utilities;
+using Serilog.Events;
+using PepperDash.Essentials.Plugins.Interfaces;
+using PepperDash.Essentials.Plugins.Utilities;
 
-namespace PepperDash.Essentials.EpiphanPearl
+namespace PepperDash.Essentials.Plugins
 {
     public class EpiphanPearlClient : IEpiphanPearlClient
     {
@@ -32,24 +33,24 @@ namespace PepperDash.Essentials.EpiphanPearl
 
             if (response == null || response.Length <= 0)
             {
-                Debug.Console(2, "[T Get<T>] Response {0} to {1} is null or empty", response, request.Url);
+                Debug.LogMessage(LogEventLevel.Debug, "[T Get<T>] Response {0} to {1} is null or empty", response, request.Url);
                 return null;
             }
 
             try
             {
-                Debug.Console(2, "[T Get<T>] Response to {0}: {1}", request.Url, response);
+                Debug.LogMessage(LogEventLevel.Debug, "[T Get<T>] Response to {0}: {1}", request.Url, response);
                 return JsonConvert.DeserializeObject<T>(response);
             }
             catch (Exception ex)
             {
-                Debug.Console(0, "[T Get<T>] Exception sending to {0}: {1}", request.Url, ex.Message);
-                Debug.Console(2, "Stack Trace: {0}", ex.StackTrace);
+                Debug.LogMessage(LogEventLevel.Error, "[T Get<T>] Exception sending to {0}: {1}", request.Url, ex.Message);
+                Debug.LogMessage(LogEventLevel.Debug, "Stack Trace: {0}", ex.StackTrace);
 
                 if (ex.InnerException == null) return null;
 
-                Debug.Console(0, "[T Get<T>] Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
-                Debug.Console(2, "Stack Trace: {0}", ex.InnerException.StackTrace);
+                Debug.LogMessage(LogEventLevel.Error, "[T Get<T>] Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
+                Debug.LogMessage(LogEventLevel.Debug, "Stack Trace: {0}", ex.InnerException.StackTrace);
 
                 return null;
             }
@@ -62,7 +63,7 @@ namespace PepperDash.Essentials.EpiphanPearl
             request.Header.ContentType = "application/json";
             request.ContentString = body != null ? JsonConvert.SerializeObject(body) : string.Empty;
 
-            Debug.Console(2, "Post request: {0} - {1}", request.Url, request.ContentString);
+            Debug.LogMessage(LogEventLevel.Debug, "Post request: {0} - {1}", request.Url, request.ContentString);
 
             var response = SendRequest(request);
 
@@ -77,13 +78,13 @@ namespace PepperDash.Essentials.EpiphanPearl
             }
             catch (Exception ex)
             {
-                Debug.Console(0, "[TResponse Post<TBody, TResponse>] Exception sending to {0}: {1}", request.Url, ex.Message);
-                Debug.Console(2, "Stack Trace: {0}", ex.StackTrace);
+                Debug.LogMessage(LogEventLevel.Error, "[TResponse Post<TBody, TResponse>] Exception sending to {0}: {1}", request.Url, ex.Message);
+                Debug.LogMessage(LogEventLevel.Debug, "Stack Trace: {0}", ex.StackTrace);
 
                 if (ex.InnerException == null) return null;
 
-                Debug.Console(0, "[TResponse Post<TBody, TResponse>] Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
-                Debug.Console(2, "Stack Trace: {0}", ex.InnerException.StackTrace);
+                Debug.LogMessage(LogEventLevel.Error, "[TResponse Post<TBody, TResponse>] Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
+                Debug.LogMessage(LogEventLevel.Debug, "Stack Trace: {0}", ex.InnerException.StackTrace);
 
                 return null;
             }
@@ -109,13 +110,13 @@ namespace PepperDash.Essentials.EpiphanPearl
             }
             catch (Exception ex)
             {
-                Debug.Console(0, "[TResponse Post<TResponse>] Exception sending to {0}: {1}", request.Url, ex.Message);
-                Debug.Console(2, "Stack Trace: {0}", ex.StackTrace);
+                Debug.LogMessage(LogEventLevel.Error, "[TResponse Post<TResponse>] Exception sending to {0}: {1}", request.Url, ex.Message);
+                Debug.LogMessage(LogEventLevel.Debug, "Stack Trace: {0}", ex.StackTrace);
 
                 if (ex.InnerException == null) return null;
 
-                Debug.Console(0, "[TResponse Post<TResponse>] Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
-                Debug.Console(2, "Stack Trace: {0}", ex.InnerException.StackTrace);
+                Debug.LogMessage(LogEventLevel.Error, "[TResponse Post<TResponse>] Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
+                Debug.LogMessage(LogEventLevel.Debug, "Stack Trace: {0}", ex.InnerException.StackTrace);
 
                 return null;
             }
@@ -137,28 +138,28 @@ namespace PepperDash.Essentials.EpiphanPearl
         {
             if (request == null)
             {
-                Debug.Console(2, "[SendRequest] Request is null");
+                Debug.LogMessage(LogEventLevel.Debug, "[SendRequest] Request is null");
                 return null;
             }
 
             if (_client == null)
             {
-                Debug.Console(2, "[SendRequest] HttpClient is null");
+                Debug.LogMessage(LogEventLevel.Debug, "[SendRequest] HttpClient is null");
                 return null;
             }
 
             try
             {
-                Debug.Console(2, "[SendRequest] Dispatching request to {0}", request.Url); // Log before dispatch
+                Debug.LogMessage(LogEventLevel.Debug, "[SendRequest] Dispatching request to {0}", request.Url); // Log before dispatch
                 var response = _client.Dispatch(request);
 
                 if (response == null)
                 {
-                    Debug.Console(2, "[SendRequest] Response is null after dispatching request to {0}", request.Url);
+                    Debug.LogMessage(LogEventLevel.Debug, "[SendRequest] Response is null after dispatching request to {0}", request.Url);
                     return null;
                 }
 
-                //Debug.Console(0, "Raw response bytes: {0}", BitConverter.ToString(response.ContentBytes));
+                //Debug.LogMessage(LogEventLevel.Error, "Raw response bytes: {0}", BitConverter.ToString(response.ContentBytes));
 
                 try
                 {
@@ -168,7 +169,7 @@ namespace PepperDash.Essentials.EpiphanPearl
                 }
                 catch (Exception ex)
                 {
-                    Debug.Console(2, "[SendRequest] Error converting response to string for URL {0}: {1}", request.Url, ex.Message);
+                    Debug.LogMessage(LogEventLevel.Debug, "[SendRequest] Error converting response to string for URL {0}: {1}", request.Url, ex.Message);
                     return null;
                 }
                 finally
@@ -178,13 +179,13 @@ namespace PepperDash.Essentials.EpiphanPearl
             }
             catch (Exception ex)
             {
-                Debug.Console(0, "[SendRequest] Exception sending to {0}: {1}", request.Url, ex.Message);
-                Debug.Console(2, "Stack Trace: {0}", ex.StackTrace);
+                Debug.LogMessage(LogEventLevel.Error, "[SendRequest] Exception sending to {0}: {1}", request.Url, ex.Message);
+                Debug.LogMessage(LogEventLevel.Debug, "Stack Trace: {0}", ex.StackTrace);
 
                 if (ex.InnerException != null)
                 {
-                    Debug.Console(0, "[SendRequest] Inner Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
-                    Debug.Console(2, "Inner Stack Trace: {0}", ex.InnerException.StackTrace);
+                    Debug.LogMessage(LogEventLevel.Error, "[SendRequest] Inner Exception sending to {0}: {1}", request.Url, ex.InnerException.Message);
+                    Debug.LogMessage(LogEventLevel.Debug, "Inner Stack Trace: {0}", ex.InnerException.StackTrace);
                 }
 
                 return null;
