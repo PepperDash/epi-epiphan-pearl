@@ -121,7 +121,14 @@ namespace PepperDash.Essentials.Plugins
             _monitor.Start();
         }
 
-        private void Poll()
+        /// <summary>
+        /// Read everything this controller reports: the schedule, the running event and its status.
+        ///
+        /// <para>Public because the Pearl says nothing unless asked — the REST API has no
+        /// websocket, webhook or subscription of any kind — so whoever knows that a command has
+        /// just gone out can ask sooner than the ten-second timer would.</para>
+        /// </summary>
+        public void Poll()
         {
             this.LogInformation("Getting Scheduled Events");
             GetScheduledEvents();
@@ -329,7 +336,13 @@ namespace PepperDash.Essentials.Plugins
             if (!response.Status.Equals("ok", StringComparison.InvariantCultureIgnoreCase))
             {
                 this.LogInformation("Error pausing event: {0}", response.Message);
+                return;
             }
+
+            // The Pearl has already paused by the time it answers. Without this the panel waits
+            // for the next poll to find out — up to ten seconds of silence on the one command
+            // only the Pearl can carry out.
+            GetRunningEvent();
         }
 
         /// <summary>Resume the paused event.</summary>
@@ -357,7 +370,11 @@ namespace PepperDash.Essentials.Plugins
             if (!response.Status.Equals("ok", StringComparison.InvariantCultureIgnoreCase))
             {
                 this.LogInformation("Error resuming event: {0}", response.Message);
+                return;
             }
+
+            // See PauseRunningEvent: read back now rather than waiting for the poll.
+            GetRunningEvent();
         }
 
         /// <summary>Stop the running or paused event ahead of its finish time.</summary>
@@ -470,7 +487,11 @@ namespace PepperDash.Essentials.Plugins
             if (!response.Status.Equals("ok", StringComparison.InvariantCultureIgnoreCase))
             {
                 this.LogInformation("Error extending event: {0}", response.Message);
+                return;
             }
+
+            // The new finish time is what the panel is waiting to see. See PauseRunningEvent.
+            GetRunningEvent();
         }
 
         private void GetScheduledEvents()
