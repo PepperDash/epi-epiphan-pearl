@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +6,7 @@ using Crestron.SimplSharp;
 using Crestron.SimplSharp.Net.Http;
 using Crestron.SimplSharp.Net.Https;
 
-namespace PepperDash.Essentials.EpiphanPearl.Utilities
+namespace PepperDash.Essentials.Plugins.Utilities
 {
     public static class HttpHelpers
     {

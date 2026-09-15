@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using PepperDash.Essentials.Core;
 
-namespace PepperDash.Essentials.EpiphanPearl.JoinMaps
+namespace PepperDash.Essentials.Plugins.JoinMaps
 {
     public class EpiphanPearlJoinMap:JoinMapBaseAdvanced
     {
