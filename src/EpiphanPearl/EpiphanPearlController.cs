@@ -76,6 +76,39 @@ namespace PepperDash.Essentials.Plugins
             CreateFeedbacks();
         }
 
+        /// <summary>
+        /// Raised whenever what this controller knows has changed — the running event, its
+        /// status, or the schedule.
+        ///
+        /// <para>The feedbacks below it exist for the EISC bridge, where each join is updated
+        /// individually. Anything that is not a bridge wants to be told once that something moved
+        /// and then read what it needs, which is what this is for.</para>
+        /// </summary>
+        public event EventHandler StateChanged;
+
+        /// <summary>
+        /// The event currently running, or null when nothing is.
+        ///
+        /// <para>The <see cref="Event"/> itself rather than the formatted feedbacks: those carry
+        /// times as "hh:mm:ss tt" strings, which have lost the date by the time anyone reads
+        /// them. <c>Status</c> on it is the Pearl's own — <c>running</c>, <c>paused</c>.</para>
+        /// </summary>
+        public Event RunningEvent
+        {
+            get { return _runningEvent; }
+        }
+
+        /// <summary>
+        /// What is scheduled, soonest first, as the Pearl last reported it. Empty when nothing is.
+        ///
+        /// <para>This is the part Panopto's API does not cover, which is why a classroom that
+        /// records to Panopto still asks the Pearl what is booked next.</para>
+        /// </summary>
+        public IList<Event> ScheduledEvents
+        {
+            get { return _scheduledEvents != null ? _scheduledEvents.AsReadOnly() : (IList<Event>)new List<Event>(); }
+        }
+
         public StatusMonitorBase CommunicationMonitor
         {
             get { return _monitor; }
@@ -577,6 +610,8 @@ namespace PepperDash.Essentials.Plugins
 
             _runningEventRunningFeedback.FireUpdate();
             _runningEventPausedFeedback.FireUpdate();
+
+            RaiseStateChanged();
         }
 
         private void UpdateFeedbacks()
@@ -599,6 +634,25 @@ namespace PepperDash.Essentials.Plugins
                 _scheduledRecordings[i].StartFeedback.FireUpdate();
                 _scheduledRecordings[i].EndFeedback.FireUpdate();
                 _scheduledRecordings[i].LengthFeedback.FireUpdate();
+            }
+
+            RaiseStateChanged();
+        }
+
+        private void RaiseStateChanged()
+        {
+            var handler = StateChanged;
+            if (handler == null)
+                return;
+
+            try
+            {
+                handler(this, EventArgs.Empty);
+            }
+            catch (Exception ex)
+            {
+                // A subscriber throwing must not stop the poll that raised this.
+                this.LogInformation("Error raising StateChanged: {0}", ex.Message);
             }
         }
 
