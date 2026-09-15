@@ -304,7 +304,8 @@ namespace PepperDash.Essentials.Plugins
             _statusTimer = null;
         }
 
-        private void PauseRunningEvent()
+        /// <summary>Pause the running event.</summary>
+        public void PauseRunningEvent()
         {
             if (_runningEvent == null)
             {
@@ -331,7 +332,8 @@ namespace PepperDash.Essentials.Plugins
             }
         }
 
-        private void ResumeRunningEvent()
+        /// <summary>Resume the paused event.</summary>
+        public void ResumeRunningEvent()
         {
             if (_runningEvent == null)
             {
@@ -358,7 +360,8 @@ namespace PepperDash.Essentials.Plugins
             }
         }
 
-        private void StopRunningEvent()
+        /// <summary>Stop the running or paused event ahead of its finish time.</summary>
+        public void StopRunningEvent()
         {
             if (_runningEvent == null)
             {
@@ -391,7 +394,8 @@ namespace PepperDash.Essentials.Plugins
             GetRunningEvent();
         }
 
-        private void StartEvent()
+        /// <summary>Force start the next scheduled event ahead of its start time.</summary>
+        public void StartEvent()
         {
             var id = string.Empty;
             if (_scheduledEvents.Count > 0)
