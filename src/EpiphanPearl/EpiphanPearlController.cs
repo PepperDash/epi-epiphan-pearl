@@ -372,7 +372,7 @@ namespace PepperDash.Essentials.Plugins
                 return;
             }
 
-            var path = string.Format("/schedule/events/{0}/control/stop", id);
+            var path = string.Format("/schedule/events/{0}/control/start", id);
 
             var response = _client.Post<ScheduleResponse<string>>(path);
 
@@ -398,11 +398,25 @@ namespace PepperDash.Essentials.Plugins
 
         private void ExtendRunningEvent()
         {
+            ExtendRunningEvent(DefaultExtendMinutes);
+        }
+
+        /// <summary>Add minutes to the running event.</summary>
+        /// <remarks>The API takes seconds to <em>add</em>, not a new finish time — see
+        /// <see cref="ExtendEventRequest"/>.</remarks>
+        public void ExtendRunningEvent(int minutes)
+        {
+            if (_runningEvent == null)
+            {
+                this.LogInformation("No running event to extend");
+                return;
+            }
+
             var path = string.Format("/schedule/events/{0}/control/extend", _runningEvent.Id);
 
             var body = new ExtendEventRequest
             {
-                Finish = _runningEvent.Finish + new TimeSpan(0, 0, 15, 0)
+                Finish = minutes * 60
             };
 
             var response = _client.Post<ExtendEventRequest, ScheduleResponse<String>>(path, body);
@@ -587,6 +601,10 @@ namespace PepperDash.Essentials.Plugins
                 _scheduledRecordings[i].LengthFeedback.FireUpdate();
             }
         }
+
+        /// <summary>How many minutes a bare Extend adds, for the join and any caller that does
+        /// not say. The API has no default of its own.</summary>
+        private const int DefaultExtendMinutes = 15;
 
         public void SetIpAddress(string hostname)
         {
