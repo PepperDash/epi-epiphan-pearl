@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using Crestron.SimplSharp;
 using Crestron.SimplSharpPro.DeviceSupport;
@@ -6,6 +7,7 @@ using Newtonsoft.Json.Bson;
 using PepperDash.Core;
 using PepperDash.Core.Logging;
 using PepperDash.Essentials.Core;
+using PepperDash.Essentials.Core.DeviceTypeInterfaces;
 using PepperDash.Essentials.Core.Bridges;
 using PepperDash.Essentials.Core.Config;
 using PepperDash.Essentials.Core.Devices;
@@ -16,7 +18,8 @@ using PepperDash.Essentials.Plugins.Utilities;
 
 namespace PepperDash.Essentials.Plugins
 {
-    public class EpiphanPearlController : ReconfigurableBridgableDevice, ICommunicationMonitor
+    public class EpiphanPearlController : ReconfigurableBridgableDevice, ICommunicationMonitor,
+        IHasRecordingPause, IHasRecordingSchedule, IHasPolling
     {
         private const string RunningStatus = "running";
         private const string PausedStatus = "paused";
@@ -312,6 +315,60 @@ namespace PepperDash.Essentials.Plugins
         }
 
         /// <summary>Pause the running event.</summary>
+        #region IHasRecordingPause / IHasRecordingSchedule / IHasPolling
+
+        /// <summary>
+        /// Deliberately not IHasRecordingControl.
+        /// </summary>
+        /// <remarks>
+        /// This device can pause and resume, and it knows what is booked, but it does not start
+        /// recordings on request. Its start command force-begins the next scheduled event, and a
+        /// booked recording starts itself — so pressing Record should never mean "begin the next
+        /// booking early". Declaring the control capability would have obliged it to offer that.
+        /// </remarks>
+        public void PauseRecording()
+        {
+            PauseRunningEvent();
+        }
+
+        /// <inheritdoc />
+        public void ResumeRecording()
+        {
+            ResumeRunningEvent();
+        }
+
+        /// <inheritdoc />
+        public RecordingScheduleEntry NextRecording
+        {
+            get
+            {
+                var running = _runningEvent == null ? null : _runningEvent.Id;
+
+                var next = ScheduledEvents
+                    .Where(e => e != null && e.Id != running)
+                    .OrderBy(e => e.Start)
+                    .FirstOrDefault();
+
+                if (next == null) return null;
+
+                return new RecordingScheduleEntry
+                {
+                    Name = next.Title,
+                    StartTime = next.Start.ToLocalTime(),
+                    EndTime = next.Finish.ToLocalTime(),
+                };
+            }
+        }
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// Raised alongside StateChanged, since the schedule is read by the same poll that reads
+        /// the running event and the two move together.
+        /// </remarks>
+        public event EventHandler NextRecordingChanged;
+
+        #endregion
+
         public void PauseRunningEvent()
         {
             if (_runningEvent == null)
@@ -666,6 +723,11 @@ namespace PepperDash.Essentials.Plugins
 
         private void RaiseStateChanged()
         {
+            // The schedule is read by the same poll that reads the running event, so the two move
+            // together and there is nothing to gain from tracking them apart.
+            var nextRecordingChanged = NextRecordingChanged;
+            if (nextRecordingChanged != null) nextRecordingChanged(this, EventArgs.Empty);
+
             var handler = StateChanged;
             if (handler == null)
                 return;
