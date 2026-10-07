@@ -222,6 +222,14 @@ namespace PepperDash.Essentials.Plugins
                 new BoolFeedback(
                     () => _runningEvent != null && _runningEvent.Status.Equals(PausedStatus, StringComparison.InvariantCultureIgnoreCase));
 
+            // The feedback fires only on a change, which is exactly when RecordingPausedChanged
+            // should — so it is the one place to raise it from, however the status was read.
+            _runningEventPausedFeedback.OutputChange += (sender, args) =>
+            {
+                var handler = RecordingPausedChanged;
+                if (handler != null) handler(this, EventArgs.Empty);
+            };
+
             _nextEventExistsFeedback = new BoolFeedback(() => _scheduledEvents.Count > 0);
         }
 
@@ -336,6 +344,19 @@ namespace PepperDash.Essentials.Plugins
         {
             ResumeRunningEvent();
         }
+
+        /// <inheritdoc />
+        /// <remarks>
+        /// The running event's own status, as last read. Pause and resume read it straight back
+        /// rather than waiting for the poll, so this follows a press within one request.
+        /// </remarks>
+        public bool IsRecordingPaused
+        {
+            get { return _runningEventPausedFeedback.BoolValue; }
+        }
+
+        /// <inheritdoc />
+        public event EventHandler RecordingPausedChanged;
 
         /// <inheritdoc />
         public RecordingScheduleEntry NextRecording
