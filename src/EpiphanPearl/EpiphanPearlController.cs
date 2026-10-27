@@ -3,7 +3,6 @@ using System.Linq;
 using System.Collections.Generic;
 using Crestron.SimplSharp;
 using Crestron.SimplSharpPro.DeviceSupport;
-using Newtonsoft.Json.Bson;
 using PepperDash.Core;
 using PepperDash.Core.Logging;
 using PepperDash.Essentials.Core;
@@ -50,8 +49,17 @@ namespace PepperDash.Essentials.Plugins
         private FeedbackCollection<StringFeedback> _scheduleNameFeedbacks;
         private FeedbackCollection<StringFeedback> _scheduleStartFeedbacks;
          */
-        private List<Event> _scheduledEvents;
+        private List<Event> _scheduledEvents = new List<Event>();
         private CTimer _statusTimer;
+
+        /// <summary>1 while a poll is running. See <see cref="Poll"/>.</summary>
+        private int _polling;
+
+        /// <summary>What <see cref="RaiseStateChanged"/> last announced, so it can tell a change
+        /// from the same answer read again.</summary>
+        private string _lastNextRecording;
+        private string _lastRunningEvent;
+        private readonly object _changeLock = new object();
         private DeviceConfig devConfig;
         private EpiphanPearlControllerConfiguration _devProperties
         {
@@ -65,14 +73,9 @@ namespace PepperDash.Essentials.Plugins
         {
             devConfig = config;
 
-            if (_devProperties.Secure)
-            {
-                _client = new EpiphanPearlSecureClient(_devProperties.Host, _devProperties.Username, _devProperties.Password);
-            }
-            else
-            {
-                _client = new EpiphanPearlClient(_devProperties.Host, _devProperties.Username, _devProperties.Password);
-            }
+            var props = _devProperties;
+
+            _client = new EpiphanPearlClient(this, props.Host, props.Secure, props.Username, props.Password);
 
             _monitor = new EpiphanCommunicationMonitor(this, 30000, 60000);
 
@@ -119,9 +122,40 @@ namespace PepperDash.Essentials.Plugins
 
         protected override void Initialize()
         {
+            _monitor.StatusChange += OnMonitorStatusChange;
+
             _pollTimer = new CTimer(o => Poll(), null, 0, 10000);
 
             _monitor.Start();
+        }
+
+        /// <summary>
+        /// Say once when the Pearl stops or starts answering, and forget what it last said once it
+        /// has been silent long enough to be called offline.
+        ///
+        /// <para>The reads keep the last good answer through a failed request, so one slow reply
+        /// does not flicker the panel. That makes this the place stale state is dropped: without
+        /// it, a Pearl that went away mid-pause would leave the room reporting paused for
+        /// good.</para>
+        /// </summary>
+        private void OnMonitorStatusChange(object sender, MonitorStatusChangeEventArgs args)
+        {
+            switch (args.Status)
+            {
+                case MonitorStatus.IsOk:
+                    this.LogInformation("Pearl is answering");
+                    break;
+                case MonitorStatus.InWarning:
+                    this.LogWarning("Pearl is not answering");
+                    break;
+                case MonitorStatus.InError:
+                    this.LogWarning("Pearl is offline; clearing what it last reported");
+                    _runningEvent = null;
+                    _scheduledEvents = new List<Event>();
+                    ClearScheduledRecordings(0);
+                    UpdateFeedbacks();
+                    break;
+            }
         }
 
         /// <summary>
@@ -130,17 +164,36 @@ namespace PepperDash.Essentials.Plugins
         /// <para>Public because the Pearl says nothing unless asked — the REST API has no
         /// websocket, webhook or subscription of any kind — so whoever knows that a command has
         /// just gone out can ask sooner than the ten-second timer would.</para>
+        ///
+        /// <para>Single-flight. The ten-second timer, the room's reads after a command and a bridge
+        /// press can all arrive at once, and a poll that queues behind another one only brings back
+        /// what the first just read. Skipping it also stops polls piling up behind a Pearl that has
+        /// gone quiet, each waiting out its own timeouts.</para>
         /// </summary>
         public void Poll()
         {
-            this.LogInformation("Getting Scheduled Events");
-            GetScheduledEvents();
+            if (System.Threading.Interlocked.Exchange(ref _polling, 1) == 1)
+            {
+                this.LogVerbose("Poll already running; skipping");
+                return;
+            }
 
-            this.LogInformation("Getting Running Events");
-            GetRunningEvent();
-
-            this.LogInformation("Getting Running Event Status");
-            GetRunningEventStatus();
+            try
+            {
+                GetScheduledEvents();
+                GetRunningEvent();
+                GetRunningEventStatus();
+            }
+            catch (Exception ex)
+            {
+                // This runs on a timer thread. Anything escaping would end this poll quietly and
+                // leave the running event unread until the next one.
+                this.LogError(ex, "Error polling the Pearl");
+            }
+            finally
+            {
+                System.Threading.Interlocked.Exchange(ref _polling, 0);
+            }
         }
 
         private void CreateFeedbacks()
@@ -582,13 +635,11 @@ namespace PepperDash.Essentials.Plugins
 
             var response = _client.Get<ScheduleResponse<List<Event>>>(todayScheduledPath);
 
-            if (response == null)
+            if (response == null || response.Result == null)
             {
-                this.LogInformation("Unable to get scheduled events");
-
-                _scheduledEvents = new List<Event>();
-
-                UpdateFeedbacks();
+                // Keep the schedule we have. One failed read is not a cleared schedule, and the
+                // monitor drops it if the Pearl stays away — see OnMonitorStatusChange.
+                this.LogDebug("Unable to get scheduled events");
 
                 _monitor.SetOnlineStatus(false);
 
@@ -597,119 +648,119 @@ namespace PepperDash.Essentials.Plugins
 
             _monitor.SetOnlineStatus(true);
 
-            _scheduledEvents = response.Result;
+            // Soonest first, so StartEvent and the bridge's "next" slot agree with NextRecording.
+            _scheduledEvents = response.Result
+                .Where(e => e != null)
+                .OrderBy(e => e.Start)
+                .ToList();
 
+            // The bridge has a fixed number of slots. More events than that is not an error — the
+            // rest are simply not bridged — but indexing past the end used to throw here and take
+            // the rest of the poll with it.
+            var slots = Math.Min(_scheduledEvents.Count, _scheduledRecordings.Count);
 
-            if (_scheduledEvents.Count > 0)
+            for (var i = 0; i < slots; i++)
             {
-                this.LogDebug("Scheduled Events");
-                for (var i = 0; i < _scheduledEvents.Count; i++)
-                {
-                    this.LogDebug("{0} - {1} | {2} | {3} | {4}", i, _scheduledEvents[i].Id, _scheduledEvents[i].Title, _scheduledEvents[i].Start, _scheduledEvents[i].Finish);
-                    _scheduledRecordings[i].Name = _scheduledEvents[i].Title;
-                    _scheduledRecordings[i].Id = _scheduledEvents[i].Id;
-                    _scheduledRecordings[i].Start = _scheduledEvents[i].Start.ToLocalTime().ToString("hh:mm:ss tt");
-                    _scheduledRecordings[i].End = _scheduledEvents[i].Finish.ToLocalTime().ToString("hh:mm:ss tt");
- 
-                    var time = _scheduledEvents[i].Finish - _scheduledEvents[i].Start;
-                    _scheduledRecordings[i].Length = string.Format("{0}", time);
-                }
+                this.LogVerbose("{0} - {1} | {2} | {3} | {4}", i, _scheduledEvents[i].Id, _scheduledEvents[i].Title, _scheduledEvents[i].Start, _scheduledEvents[i].Finish);
+                _scheduledRecordings[i].Name = _scheduledEvents[i].Title;
+                _scheduledRecordings[i].Id = _scheduledEvents[i].Id;
+                _scheduledRecordings[i].Start = _scheduledEvents[i].Start.ToLocalTime().ToString("hh:mm:ss tt");
+                _scheduledRecordings[i].End = _scheduledEvents[i].Finish.ToLocalTime().ToString("hh:mm:ss tt");
+
+                var time = _scheduledEvents[i].Finish - _scheduledEvents[i].Start;
+                _scheduledRecordings[i].Length = string.Format("{0}", time);
             }
-            else
-            {
-                this.LogDebug("No Scheduled Events");
-                for (var i = 0; i < _scheduledRecordings.Count; i++)
-                {
-                    _scheduledRecordings[i].Name = string.Empty;
-                    _scheduledRecordings[i].Id = string.Empty;
-                    _scheduledRecordings[i].Start = string.Empty;
-                    _scheduledRecordings[i].End = string.Empty;
-                    _scheduledRecordings[i].Length = string.Empty;
-                }
-            }
+
+            ClearScheduledRecordings(slots);
 
             UpdateFeedbacks();
         }
 
+        /// <summary>Blank the bridge's schedule slots from <paramref name="from"/> on, so a slot
+        /// the schedule has shrunk past does not keep showing an event that has gone.</summary>
+        private void ClearScheduledRecordings(int from)
+        {
+            for (var i = from; i < _scheduledRecordings.Count; i++)
+            {
+                _scheduledRecordings[i].Name = string.Empty;
+                _scheduledRecordings[i].Id = string.Empty;
+                _scheduledRecordings[i].Start = string.Empty;
+                _scheduledRecordings[i].End = string.Empty;
+                _scheduledRecordings[i].Length = string.Empty;
+            }
+        }
+
         private void GetRunningEvent()
         {
-            // Current event could be either running or paused
+            // Current event could be either running or paused. A failed read keeps the event we
+            // already had rather than clearing it: clearing turned every dropped request into the
+            // recording appearing to stop, and the room's Paused flipping to Recording and back.
+            // The monitor clears it if the Pearl stays away — see OnMonitorStatusChange.
 
-            this.LogInformation("Getting Running Events");
-
-            var runningEventPath = string.Format("/schedule/events/?status=running");
-
-            var pausedEventPath = string.Format("/schedule/events/?status=paused");
+            const string runningEventPath = "/schedule/events/?status=running";
+            const string pausedEventPath = "/schedule/events/?status=paused";
 
             var response = _client.Get<ScheduleResponse<List<Event>>>(runningEventPath);
 
-            if (response == null)
+            if (response == null || response.Result == null)
             {
-                this.LogInformation("Unable to get running event");
+                this.LogDebug("Unable to get running event; keeping the last one read");
+                _monitor.SetOnlineStatus(false);
+                return;
             }
 
-            if (response != null && response.Result.Count > 0)
+            if (response.Result.Count > 0)
             {
                 _runningEvent = response.Result[0];
 
-                this.LogInformation("Running Event: {0} | {1} | {2} | {3} | ", _runningEvent.Id,
+                this.LogVerbose("Running Event: {0} | {1} | {2} | {3}", _runningEvent.Id,
                     _runningEvent.Title, _runningEvent.Start, _runningEvent.Finish);
 
                 UpdateFeedbacks();
-
-                //StartEventStatusTimer();
                 return;
             }
 
             response = _client.Get<ScheduleResponse<List<Event>>>(pausedEventPath);
 
-            if (response == null)
+            if (response == null || response.Result == null)
             {
-                this.LogInformation("Unable to get paused event");
-                _runningEvent = null;
-
-                UpdateFeedbacks();
-                //StopEventStatusTimer();
-
+                this.LogDebug("Unable to get paused event; keeping the last one read");
+                _monitor.SetOnlineStatus(false);
                 return;
             }
 
             _runningEvent = response.Result.Count > 0 ? response.Result[0] : null;
 
-            UpdateFeedbacks();
-
             if (_runningEvent != null)
             {
-                //StartEventStatusTimer();
-
-                this.LogInformation("Running Event: {0} | {1} | {2} | {3} | ", _runningEvent.Id,
+                this.LogVerbose("Paused Event: {0} | {1} | {2} | {3}", _runningEvent.Id,
                     _runningEvent.Title, _runningEvent.Start, _runningEvent.Finish);
             }
-            else
-            {
-                //StopEventStatusTimer();
-            }
+
+            UpdateFeedbacks();
         }
 
         private void GetRunningEventStatus()
         {
-            if (_runningEvent == null)
+            var runningEvent = _runningEvent;
+
+            if (runningEvent == null)
             {
-                this.LogInformation("No Running Event");
+                this.LogVerbose("No Running Event");
                 return;
             }
 
-            var path = string.Format("/schedule/events/{0}/status", _runningEvent.Id);
+            var path = string.Format("/schedule/events/{0}/status", runningEvent.Id);
 
             var response = _client.Get<ScheduleResponse<string>>(path);
 
             if (response == null)
             {
-                this.LogInformation("Unable to get running event status");
+                this.LogDebug("Unable to get running event status");
                 return;
             }
 
-            _runningEvent.Status = response.Result;
+            runningEvent.Status = response.Result;
 
             _runningEventRunningFeedback.FireUpdate();
             _runningEventPausedFeedback.FireUpdate();
@@ -742,14 +793,44 @@ namespace PepperDash.Essentials.Plugins
             RaiseStateChanged();
         }
 
+        /// <summary>
+        /// Raise <see cref="NextRecordingChanged"/> and <see cref="StateChanged"/>, each only if
+        /// what it describes is different from the last time.
+        ///
+        /// <para>Every read calls this, so it used to fire both events about three times every ten
+        /// seconds with nothing changed — and the room sends every panel a full status for each
+        /// one. Comparing here keeps the reads free to call it whenever they like.</para>
+        /// </summary>
         private void RaiseStateChanged()
         {
-            // The schedule is read by the same poll that reads the running event, so the two move
-            // together and there is nothing to gain from tracking them apart.
-            var nextRecordingChanged = NextRecordingChanged;
-            if (nextRecordingChanged != null) nextRecordingChanged(this, EventArgs.Empty);
+            bool nextChanged;
+            bool stateChanged;
 
-            var handler = StateChanged;
+            lock (_changeLock)
+            {
+                var next = NextRecording;
+                var nextSignature = next == null
+                    ? string.Empty
+                    : string.Join("|", next.Name, next.StartTime.Ticks, next.EndTime.Ticks);
+
+                var running = _runningEvent;
+                var runningSignature = running == null
+                    ? string.Empty
+                    : string.Join("|", running.Id, running.Status, running.Title, running.Start.Ticks, running.Finish.Ticks);
+
+                nextChanged = nextSignature != _lastNextRecording;
+                stateChanged = nextChanged || runningSignature != _lastRunningEvent;
+
+                _lastNextRecording = nextSignature;
+                _lastRunningEvent = runningSignature;
+            }
+
+            if (nextChanged) Raise(NextRecordingChanged, "NextRecordingChanged");
+            if (stateChanged) Raise(StateChanged, "StateChanged");
+        }
+
+        private void Raise(EventHandler handler, string name)
+        {
             if (handler == null)
                 return;
 
@@ -760,7 +841,7 @@ namespace PepperDash.Essentials.Plugins
             catch (Exception ex)
             {
                 // A subscriber throwing must not stop the poll that raised this.
-                this.LogInformation("Error raising StateChanged: {0}", ex.Message);
+                this.LogError(ex, "Error raising {0}", name);
             }
         }
 
@@ -772,21 +853,12 @@ namespace PepperDash.Essentials.Plugins
         {
             try
             {
-                this.LogInformation("Changing IPAddress: {0}", hostname);
-                if (hostname.Length > 2 &
+                if (hostname.Length > 2 &&
                     devConfig.Properties["host"].ToString() != hostname)
                 {
                     this.LogInformation("Changing IPAddress: {0}", hostname);
 
-
-                    if (_devProperties.Secure)
-                    {
-                        (_client as EpiphanPearlSecureClient).setHost(hostname);
-                    }
-                    else
-                    {
-                        (_client as EpiphanPearlClient).setHost(hostname);
-                    }
+                    _client.SetHost(hostname);
 
                     devConfig.Properties["host"] = hostname;
                     CustomSetConfig(devConfig);
@@ -795,8 +867,7 @@ namespace PepperDash.Essentials.Plugins
             }
             catch (Exception e)
             {
-                if (Debug.Level == 2)
-                    this.LogError("Error SetIpAddress: '{0}'", e);
+                this.LogError(e, "Error setting the Pearl's address");
             }
         }
         protected override void CustomSetConfig(DeviceConfig config)

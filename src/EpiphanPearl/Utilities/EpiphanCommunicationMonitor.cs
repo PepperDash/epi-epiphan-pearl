@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Crestron.SimplSharp;
 using PepperDash.Core;
 using PepperDash.Essentials.Core;
 
@@ -19,7 +14,11 @@ namespace PepperDash.Essentials.Plugins.Utilities
         public override void Start()
         {
             _isStarted = true;
-            UpdateTimers();
+
+            if (Status == MonitorStatus.IsOk)
+                StopErrorTimers();
+            else
+                StartErrorTimers();
         }
 
         public override void Stop()
@@ -28,28 +27,28 @@ namespace PepperDash.Essentials.Plugins.Utilities
             StopErrorTimers();
         }
 
+        /// <summary>
+        /// Report the outcome of a request.
+        /// </summary>
+        /// <remarks>
+        /// A failure starts the warning and error timers rather than changing the status itself, so
+        /// one slow reply does not take the device offline but a Pearl that stays silent does. This
+        /// used to stop the timers whenever the status was already OK — which, after the first good
+        /// reply, it always was — so the Pearl could never be reported offline again.
+        /// </remarks>
         public void SetOnlineStatus(bool isOnline)
         {
             if (isOnline)
             {
                 Status = MonitorStatus.IsOk;
-            }
-
-            UpdateTimers();
-        }
-
-        public void UpdateTimers()
-        {
-            if (!_isStarted)
-                return;
-
-            if (Status == MonitorStatus.IsOk)
-            {
                 StopErrorTimers();
                 return;
             }
-            StartErrorTimers();
-            
+
+            // StartErrorTimers leaves timers that are already running alone, so repeated failures
+            // count from the first one.
+            if (_isStarted)
+                StartErrorTimers();
         }
     }
 }

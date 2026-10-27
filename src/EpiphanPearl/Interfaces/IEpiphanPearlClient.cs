@@ -1,8 +1,3 @@
-using System;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using PepperDash.Core;
-
 namespace PepperDash.Essentials.Plugins.Interfaces
 {
     interface IEpiphanPearlClient
@@ -14,5 +9,8 @@ namespace PepperDash.Essentials.Plugins.Interfaces
             where TResponse : class;
 
         TResponse Post<TResponse>(string path) where TResponse : class;
+
+        /// <summary>Point at a different Pearl, keeping the scheme and credentials.</summary>
+        void SetHost(string host);
     }
 }
