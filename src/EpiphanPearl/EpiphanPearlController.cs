@@ -50,7 +50,8 @@ namespace PepperDash.Essentials.Plugins
         private FeedbackCollection<StringFeedback> _scheduleStartFeedbacks;
          */
         private List<Event> _scheduledEvents = new List<Event>();
-        private CTimer _statusTimer;
+        /// <summary>See <see cref="GetRunningEvent"/>.</summary>
+        private readonly object _runningEventLock = new object();
 
         /// <summary>1 while a poll is running. See <see cref="Poll"/>.</summary>
         private int _polling;
@@ -182,7 +183,6 @@ namespace PepperDash.Essentials.Plugins
             {
                 GetScheduledEvents();
                 GetRunningEvent();
-                GetRunningEventStatus();
             }
             catch (Exception ex)
             {
@@ -354,27 +354,6 @@ namespace PepperDash.Essentials.Plugins
             };
         }
 
-        private void StartEventStatusTimer()
-        {
-            if (_statusTimer != null)
-            {
-                _statusTimer.Stop();
-                _statusTimer.Dispose();
-                _statusTimer = null;
-            }
-
-            _statusTimer = new CTimer(o => GetRunningEventStatus(), null, 0, 5000);
-        }
-
-        private void StopEventStatusTimer()
-        {
-            if (_statusTimer == null) return;
-
-            _statusTimer.Stop();
-            _statusTimer.Dispose();
-            _statusTimer = null;
-        }
-
         /// <summary>Pause the running event.</summary>
         #region IHasRecordingPause / IHasRecordingSchedule / IHasPolling
 
@@ -535,10 +514,6 @@ namespace PepperDash.Essentials.Plugins
                 this.LogInformation("Error stopping event: {0}", response.Message);
             }
 
-            //StopEventStatusTimer();
-
-            GetRunningEventStatus();
-
             GetRunningEvent();
         }
 
@@ -577,8 +552,6 @@ namespace PepperDash.Essentials.Plugins
             }
 
             GetRunningEvent();
-
-            //StartEventStatusTimer();
         }
 
         private void ExtendRunningEvent()
@@ -690,82 +663,90 @@ namespace PepperDash.Essentials.Plugins
             }
         }
 
+        /// <summary>
+        /// Read the event that is running or paused, and what it is doing, and publish both at once.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>The lists say which event; only the event's own status says what it is
+        /// doing.</b> For a few seconds after a pause the Pearl still lists the event under
+        /// <c>?status=running</c>, carrying a status of <c>running</c>, while
+        /// <c>/events/{id}/status</c> already answers <c>paused</c> — measured on a Pearl, the
+        /// running list lagged by about five seconds. This used to publish the list's copy and
+        /// correct it with a second read afterwards, so a read landing in that window put the room
+        /// back to Recording until the next poll.</para>
+        /// <para><b>One reader at a time.</b> A command's read-back and the poll could each read and
+        /// publish, and the status read wrote onto whichever event object it had captured — not
+        /// necessarily the one just published. Locked, the read and the publish happen together
+        /// and in order.</para>
+        /// <para>A failed read keeps the event we already had rather than clearing it: clearing
+        /// turned every dropped request into the recording appearing to stop. The monitor clears it
+        /// if the Pearl stays away — see <see cref="OnMonitorStatusChange"/>.</para>
+        /// </remarks>
         private void GetRunningEvent()
         {
-            // Current event could be either running or paused. A failed read keeps the event we
-            // already had rather than clearing it: clearing turned every dropped request into the
-            // recording appearing to stop, and the room's Paused flipping to Recording and back.
-            // The monitor clears it if the Pearl stays away — see OnMonitorStatusChange.
-
-            const string runningEventPath = "/schedule/events/?status=running";
-            const string pausedEventPath = "/schedule/events/?status=paused";
-
-            var response = _client.Get<ScheduleResponse<List<Event>>>(runningEventPath);
-
-            if (response == null || response.Result == null)
+            lock (_runningEventLock)
             {
-                this.LogDebug("Unable to get running event; keeping the last one read");
-                _monitor.SetOnlineStatus(false);
-                return;
-            }
+                Event current;
 
-            if (response.Result.Count > 0)
-            {
-                _runningEvent = response.Result[0];
+                if (!TryReadCurrentEvent(out current))
+                {
+                    this.LogDebug("Unable to read the current event; keeping the last one read");
+                    _monitor.SetOnlineStatus(false);
+                    return;
+                }
 
-                this.LogVerbose("Running Event: {0} | {1} | {2} | {3}", _runningEvent.Id,
-                    _runningEvent.Title, _runningEvent.Start, _runningEvent.Finish);
+                if (current != null)
+                {
+                    var path = string.Format("/schedule/events/{0}/status", current.Id);
+
+                    var status = _client.Get<ScheduleResponse<string>>(path);
+
+                    if (status == null || string.IsNullOrEmpty(status.Result))
+                    {
+                        this.LogDebug("Unable to get the status of event {0}; keeping the last one read", current.Id);
+                        _monitor.SetOnlineStatus(false);
+                        return;
+                    }
+
+                    current.Status = status.Result;
+
+                    this.LogVerbose("Current Event: {0} | {1} | {2} | {3} | {4}", current.Id,
+                        current.Title, current.Status, current.Start, current.Finish);
+                }
+
+                _runningEvent = current;
 
                 UpdateFeedbacks();
-                return;
             }
-
-            response = _client.Get<ScheduleResponse<List<Event>>>(pausedEventPath);
-
-            if (response == null || response.Result == null)
-            {
-                this.LogDebug("Unable to get paused event; keeping the last one read");
-                _monitor.SetOnlineStatus(false);
-                return;
-            }
-
-            _runningEvent = response.Result.Count > 0 ? response.Result[0] : null;
-
-            if (_runningEvent != null)
-            {
-                this.LogVerbose("Paused Event: {0} | {1} | {2} | {3}", _runningEvent.Id,
-                    _runningEvent.Title, _runningEvent.Start, _runningEvent.Finish);
-            }
-
-            UpdateFeedbacks();
         }
 
-        private void GetRunningEventStatus()
+        /// <summary>
+        /// Find the event that is running or paused. False if the Pearl could not be asked; true
+        /// with null if it was asked and nothing is.
+        /// </summary>
+        /// <remarks>
+        /// Running is asked first because it is the usual case, and the paused list is only asked
+        /// when the running one is empty. During the transition an event can appear in both; it is
+        /// the same event either way, and its status comes from <see cref="GetRunningEvent"/>.
+        /// </remarks>
+        private bool TryReadCurrentEvent(out Event current)
         {
-            var runningEvent = _runningEvent;
+            current = null;
 
-            if (runningEvent == null)
+            foreach (var path in new[] { "/schedule/events/?status=running", "/schedule/events/?status=paused" })
             {
-                this.LogVerbose("No Running Event");
-                return;
+                var response = _client.Get<ScheduleResponse<List<Event>>>(path);
+
+                if (response == null || response.Result == null)
+                    return false;
+
+                current = response.Result.FirstOrDefault(e => e != null);
+
+                if (current != null)
+                    return true;
             }
 
-            var path = string.Format("/schedule/events/{0}/status", runningEvent.Id);
-
-            var response = _client.Get<ScheduleResponse<string>>(path);
-
-            if (response == null)
-            {
-                this.LogDebug("Unable to get running event status");
-                return;
-            }
-
-            runningEvent.Status = response.Result;
-
-            _runningEventRunningFeedback.FireUpdate();
-            _runningEventPausedFeedback.FireUpdate();
-
-            RaiseStateChanged();
+            return true;
         }
 
         private void UpdateFeedbacks()
